@@ -42,3 +42,39 @@ exports.signup = BigPromise(async (req, res, next) => {
 
   CookieToken(user, res);
 });
+
+exports.login = BigPromise(async (req,res,next)=>{
+  const {email,password} = req.body
+
+  if(!email || !password){
+    return next(new CustomError("Email or Password is required"));
+  }
+
+  const user = await User.findOne({email}).select("+password");
+
+  if(!user){
+    return next(new CustomError("You are not registered"));
+  }
+
+  //match the password
+  const isPassword =await  user.isValidatedPassword(password);
+
+  console.log(isPassword);
+  //if password do not match
+  if(!isPassword){
+    return next(new CustomError("email or password is not valid"));
+  }
+
+  CookieToken(user,res);
+});
+
+exports.logout = BigPromise(async (req, res, next) => {
+  res.cookie("token",null,{
+    expires: new Date(Date.now()),
+    httpOnly: true
+  })
+  res.status(200).json({
+          status:true,
+          msg:"logout succesfully"
+  })
+})
