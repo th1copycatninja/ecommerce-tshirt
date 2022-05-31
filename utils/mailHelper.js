@@ -13,9 +13,8 @@ const mailHelper = async (options) =>{
          await transporter.sendMail({
         from: 'uic.17mca8067@gmail.com', // sender address
         to: options.toMail, // list of receivers
-        subject: "forgot password mail", // Subject line
-        text: "forgot password mail send using nodemailer and mailtrap", // plain text body
-        html: "<b>Hello world?</b>", // html body
+        subject: options.subject, // Subject line
+        text:options.message, // Messageplain text body
       });
 }
 
