@@ -4,6 +4,7 @@ const CookieToken = require("../utils/cookieToken");
 const cloudinary = require("cloudinary");
 const mailHelper = require("../utils/mailHelper");
 const User = require("../models/user");
+const crypto = require("crypto");
 
 exports.signup = BigPromise(async (req, res, next) => {
   const { name, email, password } = req.body;
@@ -86,11 +87,12 @@ exports.forgotPassword = BigPromise(async (req, res, next) => {
     next(new CustomError("Email not found"));
   }
   const forgotToken = await user.getForgotPasswordToken();
-  await user.set({ validateBeforeSave: false });
+
+  await user.save({ validateBeforeSave: false });
   try {
     const myUrl = `${req.protocol}://${req.get(
       "host"
-    )}/password/reset/${forgotToken}`;
+    )}/api/v1/password/reset/${forgotToken}`;
     const message = `please hit this url ${myUrl}`;
     await mailHelper({
       toMail: user.email,
@@ -104,4 +106,34 @@ exports.forgotPassword = BigPromise(async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
     return next(new CustomError(error?.message, 500));
   }
+});
+
+exports.resetPassword = BigPromise(async (req, res, next) => {
+  const token = req.params.token;
+  const { password, confirmPassword } = req.body;
+
+  const encryptToken = crypto.createHash("sha256").update(token).digest("hex");
+
+  const user = await User.findOne({
+    encryptToken,
+    forgotPasswordExpiry: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    next(new CustomError("Token is invalid or expired", 400));
+  }
+
+  if (password !== confirmPassword) {
+    next(new CustomError("Password and confirmPassword are not the same", 400));
+  }
+
+  user.password = password;
+  user.forgotPasswordToken = undefined;
+  user.forgotPasswordExpiry = undefined;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message:"Password reset successfully"
+  })
 });
