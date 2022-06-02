@@ -137,3 +137,16 @@ exports.resetPassword = BigPromise(async (req, res, next) => {
     message:"Password reset successfully"
   })
 });
+
+
+exports.getLoggedInUserDetail = BigPromise(async (req, res, next) => {
+    const user  = await User.findById(req.user_id);
+      if(!user){
+        return next(new CustomError("User not found or user is unauthrized"));
+      }
+
+      res.status(200).json({
+        status:true,
+        user,
+      })
+})
