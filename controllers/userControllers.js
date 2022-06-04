@@ -167,44 +167,51 @@ exports.changePassword = BigPromise(async (req, res, next) => {
 });
 
 exports.updateUserDetails = BigPromise(async (req, res, next) => {
-
   // change this route post to patch , so user can send not all data, but only required data
-  if (!req.body.name) {
-    return next(new CustomError("Please send user name"));
-  }
-
-  if (!req.body.email) {
-    return next(new CustomError("Please send user email"));
-  }
-
-  const newData = {
-    name: req.body.name,
-    email: req.body.email,
-  };
-
-  if (req.files) {
-    const user = await User.findById(req.user_id);
-    const imageId = user.photo.id;
-    const res = await cloudinary.v2.uploader.destroy(imageId);
-    const result = await cloudinary.v2.uploader.upload(file.tempFilePath, {
-      folder: "users",
-      width: "150",
-      crop: "sclae",
-    });
-    newData.photo = {
-      id: result.public_id,
-      secure_url: result.secure_url,
+  try {
+    if (!req.body.name) {
+      return next(new CustomError("Please send user name"));
+    }
+  
+    if (!req.body.email) {
+      return next(new CustomError("Please send user email"));
+    }
+  
+    const newData = {
+      name: req.body.name,
+      email: req.body.email,
     };
+  
+    if (req.files) {
+      const user = await User.findById(req.user_id);
+      console.log("user data",user);
+      const imageId = user.photo.id;
+      const res = await cloudinary.v2.uploader.destroy(imageId);
+      console.log("image destry",res,imageId);
+      const result = await cloudinary.v2.uploader.upload(req.files.photo.tempFilePath, {
+        folder: "users",
+        width: "150",
+        crop: "scale",
+      });
+      console.log("image upload",result);
+      newData.photo = {
+        id: result.public_id,
+        secure_url: result.secure_url,
+      };
+    }
+    const user = await User.findByIdAndUpdate(req.user_id, newData, {
+      new: true,
+      runValidators: true,
+    });
+  
+    console.log(user);
+  
+    res.status(200).json({
+      status: true,
+      user,
+    });  
+  } catch (error) {
+    console.log(error);
   }
-  const user = await User.findByIdAndUpdate(req.user_id, newData, {
-    new: true,
-    runValidators: true,
-  });
-
-  console.log(user);
-
-  res.status(200).json({
-    status: true,
-    user,
-  });
+  
 });
