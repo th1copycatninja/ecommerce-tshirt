@@ -139,7 +139,7 @@ exports.resetPassword = BigPromise(async (req, res, next) => {
 });
 
 exports.getLoggedInUserDetail = BigPromise(async (req, res, next) => {
-  const user = await User.findById(req.user_id);
+  const user = await User.findById(req.user.id);
   if (!user) {
     return next(new CustomError("User not found or user is unauthrized"));
   }
@@ -151,7 +151,7 @@ exports.getLoggedInUserDetail = BigPromise(async (req, res, next) => {
 });
 
 exports.changePassword = BigPromise(async (req, res, next) => {
-  const user = await User.findById(req.user_id).select("+password");
+  const user = await User.findById(req.user.id).select("+password");
 
   const isOldPasswordCorrect = await user.isValidatedPassword(
     req.body.oldPassword
@@ -172,46 +172,118 @@ exports.updateUserDetails = BigPromise(async (req, res, next) => {
     if (!req.body.name) {
       return next(new CustomError("Please send user name"));
     }
-  
+
     if (!req.body.email) {
       return next(new CustomError("Please send user email"));
     }
-  
+
     const newData = {
       name: req.body.name,
       email: req.body.email,
     };
-  
+
     if (req.files) {
-      const user = await User.findById(req.user_id);
-      console.log("user data",user);
+      const user = await User.findById(req.user.id);
+      console.log("user data", user);
       const imageId = user.photo.id;
       const res = await cloudinary.v2.uploader.destroy(imageId);
-      console.log("image destry",res,imageId);
-      const result = await cloudinary.v2.uploader.upload(req.files.photo.tempFilePath, {
-        folder: "users",
-        width: "150",
-        crop: "scale",
-      });
-      console.log("image upload",result);
+      console.log("image destry", res, imageId);
+      const result = await cloudinary.v2.uploader.upload(
+        req.files.photo.tempFilePath,
+        {
+          folder: "users",
+          width: "150",
+          crop: "scale",
+        }
+      );
+      console.log("image upload", result);
       newData.photo = {
         id: result.public_id,
         secure_url: result.secure_url,
       };
     }
-    const user = await User.findByIdAndUpdate(req.user_id, newData, {
+    const user = await User.findByIdAndUpdate(req.user.id, newData, {
       new: true,
       runValidators: true,
     });
-  
+
     console.log(user);
-  
+
     res.status(200).json({
       status: true,
       user,
-    });  
+    });
   } catch (error) {
     console.log(error);
   }
-  
 });
+
+exports.getAllUserForAdmin = BigPromise(async (req, res, next) => {
+  const allUsers = await User.find({});
+  res.status(200).json({
+    success: true,
+    allUsers,
+  });
+});
+
+exports.getOneUserForAdmin = BigPromise(async (req, res, next) => {
+  console.log(req.params.id);
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return next(new CustomError("User not found"), 401);
+    }
+
+    res.status(200).json({
+      sucess: true,
+      user,
+    });
+  } catch (error) {
+    return next(new CustomError("User not found, please send valid id"), 401);
+  }
+});
+
+exports.adminUpdateUserDetail = BigPromise(async (req, res, next) => {
+  const newData = {
+    name: req.body.name,
+    email: req.body.email,
+    role: req.body.role,
+  };
+
+  // in future add admin can also update user photo
+  const user = await User.findByIdAndUpdate(req.params.id, newData, {
+    new: true,
+    runValidators: true,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "user details in update",
+  });
+});
+
+exports.adminDeleteUser = BigPromise(async (req, res, next) => {
+  const user = await User.findById(req.params.id);
+  if(!user){
+    return next(new CustomError("No user found"),401)
+  }
+
+  const imageId = user.photo.id;
+  await cloudinary.v2.uploader.destroy(imageId);
+ await user.remove();
+
+ res.status(200).json({
+   success: true,
+   message: "user is removed",
+ })
+
+})
+
+exports.getAllUserForManager = BigPromise(async (req, res, next) => {
+  const allUsers = await User.find({ role: "user" });
+  res.status(200).json({
+    success: true,
+    allUsers,
+  });
+});
+
